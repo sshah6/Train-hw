@@ -1,87 +1,133 @@
- var config = {
-     apiKey: "AIzaSyCqdxc6mz2FVtXARGyk8KHuMltsXMzKBR4",
-     authDomain: "train-employeehw.firebaseapp.com",
-     databaseURL: "https://train-employeehw.firebaseio.com",
-     projectId: "train-employeehw",
-     storageBucket: "train-employeehw.appspot.com",
-     messagingSenderId: "298113782519"
- };
- firebase.initializeApp(config);
+var trainName = "";
+var trainDestination = "";
+var trainTime = "";
+var trainFrequency = "";
+var nextArrival = "";
+var minutesAway = "";
+
+var elTrain = $("#train-name");
+var elTrainDestination = $("#train-destination");
+
+var elTrainTime = $("#train-time").mask("00:00");
+var elTimeFreq = $("#time-freq").mask("00");
 
 
- var database = firebase.database();
 
 
- $("#add-employee-btn").on("click", function(event) {
-     event.preventDefault();
+
+var config = {
+    apiKey: "AIzaSyCqdxc6mz2FVtXARGyk8KHuMltsXMzKBR4",
+    authDomain: "train-employeehw.firebaseapp.com",
+    databaseURL: "https://train-employeehw.firebaseio.com",
+    projectId: "train-employeehw",
+    storageBucket: "train-employeehw.appspot.com",
+    messagingSenderId: "298113782519"
+};
+firebase.initializeApp(config);
+
+var database = firebase.database();
+
+database.ref("/trains").on("child_added", function(snapshot) {
 
 
-     var empName = $("#employee-name-input").val().trim();
-     var empRole = $("#role-input").val().trim();
-     var empStart = moment($("#start-input").val().trim(), "MM/DD/YYYY").format("X");
-     var empRate = $("#rate-input").val().trim();
+    var trainDiff = 0;
+    var trainRemainder = 0;
+    var minutesTillArrival = "";
+    var nextTrainTime = "";
+    var frequency = snapshot.val().frequency;
 
 
-     var newEmp = {
-         name: empName,
-         role: empRole,
-         start: empStart,
-         rate: empRate
-     };
-
-     database.ref().push(newEmp);
+    trainDiff = moment().diff(moment.unix(snapshot.val().time), "minutes");
 
 
-     console.log(newEmp.name);
-     console.log(newEmp.role);
-     console.log(newEmp.start);
-     console.log(newEmp.rate);
-
-     alert("Employee successfully added");
+    trainRemainder = trainDiff % frequency;
 
 
-     $("#employee-name-input").val("");
-     $("#role-input").val("");
-     $("#start-input").val("");
-     $("#rate-input").val("");
- });
+    minutesTillArrival = frequency - trainRemainder;
 
 
- database.ref().on("child_added", function(childSnapshot) {
-     console.log(childSnapshot.val());
-
-     var empName = childSnapshot.val().name;
-     var empRole = childSnapshot.val().role;
-     var empStart = childSnapshot.val().start;
-     var empRate = childSnapshot.val().rate;
+    nextTrainTime = moment().add(minutesTillArrival, "m").format("hh:mm A");
 
 
-     console.log(empName);
-     console.log(empRole);
-     console.log(empStart);
-     console.log(empRate);
+    $("#table-data").append(
+        "<tr><td>" + snapshot.val().name + "</td>" +
+        "<td>" + snapshot.val().destination + "</td>" +
+        "<td>" + frequency + "</td>" +
+        "<td>" + minutesTillArrival + "</td>" +
+        "<td>" + nextTrainTime + "  " + "<a><span class='glyphicon glyphicon-remove icon-hidden' aria-hidden='true'></span></a>" + "</td></tr>"
+    );
+
+    $("span").hide();
 
 
-     var empStartPretty = moment.unix(empStart).format("MM/DD/YYYY");
+    $("tr").hover(
+        function() {
+            $(this).find("span").show();
+        },
+        function() {
+            $(this).find("span").hide();
+        });
 
 
-     var empMonths = moment().diff(moment(empStart, "X"), "months");
-     console.log(empMonths);
+    $("#table-data").on("click", "tr span", function() {
+        console.log(this);
+        var trainRef = database.ref("/trains/");
+        console.log(trainRef);
+    });
+});
 
 
-     var empBilled = empMonths * empRate;
-     console.log(empBilled);
+var storeInputs = function(event) {
+
+    event.preventDefault();
 
 
-     var newRow = $("<tr>").append(
-         $("<td>").text(empName),
-         $("<td>").text(empRole),
-         $("<td>").text(empStartPretty),
-         $("<td>").text(empMonths),
-         $("<td>").text(empRate),
-         $("<td>").text(empBilled)
-     );
+    trainName = elTrain.val().trim();
+    trainDestination = elTrainDestination.val().trim();
+    trainTime = moment(elTrainTime.val().trim(), "HH:mm").subtract(1, "years").format("X");
+    trainFrequency = elTimeFreq.val().trim();
 
 
-     $("#employee-table > tbody").append(newRow);
- });
+    database.ref("/trains").push({
+        name: trainName,
+        destination: trainDestination,
+        time: trainTime,
+        frequency: trainFrequency,
+        nextArrival: nextArrival,
+        minutesAway: minutesAway,
+        date_added: firebase.database.ServerValue.TIMESTAMP
+    });
+
+
+    alert("Train successuflly added!");
+
+
+    elTrain.val("");
+    elTrainDestination.val("");
+    elTrainTime.val("");
+    elTimeFreq.val("");
+};
+
+
+$("#btn-add").on("click", function(event) {
+
+    if (elTrain.val().length === 0 || elTrainDestination.val().length === 0 || elTrainTime.val().length === 0 || elTimeFreq === 0) {
+        alert("Please Fill All Required Fields");
+    } else {
+
+        storeInputs(event);
+    }
+});
+
+
+$('form').on("keypress", function(event) {
+    if (event.which === 13) {
+
+        if (elTrain.val().length === 0 || elTrainDestination.val().length === 0 || elTrainTime.val().length === 0 || elTimeFreq === 0) {
+            alert("Please Fill All Required Fields");
+        } else {
+
+            storeInputs(event);
+        }
+    }
+});
